@@ -15,21 +15,19 @@
 name: Run it on action
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
   schedule:
     - cron: 10 09 * * 2
-  watch:
-    types: [started]
 jobs:
   run-it:
-    runs-on: ubuntu-18.04
-    if: github.event.repository.owner.id == github.event.sender.id
+    runs-on: ubuntu-latest
     name: Run it on action
     steps:
       - name: Checkout master
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -53,6 +51,23 @@ jobs:
           if [ '${{ secrets.TELEGRAM_BOT_ENABLE }}' != '' ]; then sed -i "s/^TELEGRAM_BOT_ENABLE=.*$/TELEGRAM_BOT_ENABLE='${{ secrets.TELEGRAM_BOT_ENABLE }}'/" .env; fi
           if [ '${{ secrets.NOTICE_FREQ }}' != '' ]; then sed -i "s/^NOTICE_FREQ=.*$/NOTICE_FREQ='${{ secrets.NOTICE_FREQ }}'/" .env; fi
           sed -i "s/^ON_GITHUB_ACTIONS=.*$/ON_GITHUB_ACTIONS=true/" .env
+      - name: Install WARP
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install --no-install-recommends net-tools iproute2 openresolv dnsutils iptables wireguard-tools
+          sudo echo "[Interface]
+          PrivateKey = cKE7LmCF61IhqqABGhvJ44jWXp8fKymcMAEVAzbDF2k=
+          Address = 172.16.0.2/32
+          Address = fd01:5ca1:ab1e:823e:e094:eb1c:ff87:1fab/128
+          DNS = 8.8.8.8,8.8.4.4
+          MTU = 1280
+          [Peer]
+          PublicKey = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=
+          AllowedIPs = 0.0.0.0/0
+          AllowedIPs = ::/0
+          Endpoint = 162.159.193.10:2408" | sudo tee /etc/wireguard/wgcf.conf
+          sudo wg-quick up wgcf
+          sudo curl -s4m8 https://ip.gs/json
       - name: Run
         run: |
           php run
